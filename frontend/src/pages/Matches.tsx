@@ -11,6 +11,7 @@ async function fetchMatches(): Promise<MatchesResponse> {
 export default function Matches() {
   const [data, { refetch }] = createResource(fetchMatches)
   const [filterPlayer, setFilterPlayer] = createSignal('')
+  const [upcomingLimit, setUpcomingLimit] = createSignal(8)
 
   const refreshTimer = window.setInterval(() => {
     refetch()
@@ -92,11 +93,21 @@ export default function Matches() {
             <span class="section-count">{visibleUpcoming().length}</span>
           </div>
           <Show when={visibleUpcoming().length === 0} fallback={
-            <div class="match-list">
-              <For each={visibleUpcoming()}>
-                {(match) => <MatchCard match={match} teamOwners={data()!.teamOwners} />}
-              </For>
-            </div>
+            <>
+              <div class="match-list">
+                <For each={visibleUpcoming().slice(0, upcomingLimit())}>
+                  {(match) => <MatchCard match={match} teamOwners={data()!.teamOwners} />}
+                </For>
+              </div>
+              <Show when={visibleUpcoming().length > upcomingLimit()}>
+                <button
+                  class="show-more"
+                  onClick={() => setUpcomingLimit(upcomingLimit() + 8)}
+                >
+                  Show more ({visibleUpcoming().length - upcomingLimit()} remaining)
+                </button>
+              </Show>
+            </>
           }>
             <p class="empty">No upcoming matches.</p>
           </Show>

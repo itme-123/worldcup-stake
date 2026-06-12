@@ -194,6 +194,27 @@ section { margin-bottom: 2.75rem; }
   border-color: var(--accent);
 }
 
+.show-more {
+  display: block;
+  margin: 1rem auto 0;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 0.55rem 1.4rem;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.show-more:hover {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+
 /* ── MATCH LIST ───────────────────────────────────── */
 .match-list {
   display: flex;

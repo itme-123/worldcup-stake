@@ -1,13 +1,14 @@
 [
-  { "name": "Player 1", "teams": ["ALG", "CPV", "HAI", "NZL", "TUR"] },
-  { "name": "Player 2", "teams": ["ARG", "CRO", "IRN", "PAN", "URU"] },
-  { "name": "Player 3", "teams": ["AUS", "CUW", "IRQ", "PAR", "USA"] },
-  { "name": "Player 4", "teams": ["AUT", "CZE", "JOR", "POR", "UZB"] },
-  { "name": "Player 5", "teams": ["BEL", "ECU", "JPN", "QAT"] },
-  { "name": "Player 6", "teams": ["BIH", "EGY", "KOR", "RSA"] },
-  { "name": "Player 7", "teams": ["BRA", "ENG", "KSA", "SCO"] },
-  { "name": "Player 8", "teams": ["CAN", "ESP", "MAR", "SEN"] },
-  { "name": "Player 9", "teams": ["CIV", "FRA", "MEX", "SUI"] },
-  { "name": "Player 10", "teams": ["COD", "GER", "NED", "SWE"] },
-  { "name": "Player 11", "teams": ["COL", "GHA", "NOR", "TUN"] }
+  { "name": "Amy", "teams": ["BIH", "POR", "CUW", "CIV"] },
+  { "name": "Marko", "teams": ["TUR", "NED", "COL", "MEX"] },
+  { "name": "Dan", "teams": ["RSA", "TUN", "SCO", "FRA"] },
+  { "name": "Vivien", "teams": ["IRQ", "ARG", "IRN", "URU"] },
+  { "name": "Ben", "teams": ["BRA", "BEL", "CRO", "GER"] },
+  { "name": "Kevin", "teams": ["JOR", "SUI", "GHA", "ALG"] },
+  { "name": "Rah", "teams": ["SWE", "CPV", "AUS", "ECU"] },
+  { "name": "Jordan", "teams": ["HAI", "USA", "KOR", "EGY"] },
+  { "name": "Justin", "teams": ["SEN", "NOR", "AUT", "JPN"] },
+  { "name": "Jerome", "teams": ["KSA", "PAN", "ESP", "ENG"] },
+  { "name": "Christian", "teams": ["CAN", "COD", "MAR", "QAT"] },
+  { "name": "Not Drawn", "teams": ["CZE", "NZL", "PAR", "UZB"] }
 ]
