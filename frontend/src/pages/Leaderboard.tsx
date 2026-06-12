@@ -68,7 +68,7 @@ export default function Leaderboard() {
                 </div>
                 <div class="points-display">
                   <span class="points-value">{entry.points}</span>
-                  <span class="points-label">pts</span>
+                  <span class="points-label">Wins</span>
                 </div>
               </div>
             )}
