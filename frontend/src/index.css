@@ -215,6 +215,41 @@ section { margin-bottom: 2.75rem; }
   background: var(--accent-light);
 }
 
+/* ── LEADERBOARD EXTRAS ───────────────────────────── */
+.badge-chip {
+  display: inline-block;
+  margin-left: 0.5rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gold);
+  background: #fef7ec;
+  border: 1px solid #f0dcbd;
+  border-radius: 99px;
+  padding: 0.14rem 0.55rem;
+  vertical-align: middle;
+  cursor: help;
+  white-space: nowrap;
+}
+
+.alive-line {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--green);
+  margin: 0.15rem 0 0.3rem;
+}
+
+.alive-line.dead {
+  color: var(--text-muted);
+}
+
+.team-chip.eliminated {
+  opacity: 0.45;
+  filter: grayscale(1);
+  text-decoration: line-through;
+}
+
 /* ── MATCH LIST ───────────────────────────────────── */
 .match-list {
   display: flex;
