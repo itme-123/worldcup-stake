@@ -36,4 +36,6 @@ frontend/dist/*
 .claude/settings.local.json
 .claude/worktrees
 
-/data/
+/data/*
+!/data/teams.json
+!/data/users.json

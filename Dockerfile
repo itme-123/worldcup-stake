@@ -26,6 +26,7 @@ RUN apk add --no-cache ca-certificates tzdata
 
 WORKDIR /app
 COPY --from=go-builder /worldcup-stake .
+COPY data/teams.json data/users.json ./data/
 
 VOLUME ["/data"]
 

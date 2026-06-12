@@ -1,0 +1,13 @@
+[
+  { "name": "Player 1", "teams": ["ALG", "CPV", "HAI", "NZL", "TUR"] },
+  { "name": "Player 2", "teams": ["ARG", "CRO", "IRN", "PAN", "URU"] },
+  { "name": "Player 3", "teams": ["AUS", "CUW", "IRQ", "PAR", "USA"] },
+  { "name": "Player 4", "teams": ["AUT", "CZE", "JOR", "POR", "UZB"] },
+  { "name": "Player 5", "teams": ["BEL", "ECU", "JPN", "QAT"] },
+  { "name": "Player 6", "teams": ["BIH", "EGY", "KOR", "RSA"] },
+  { "name": "Player 7", "teams": ["BRA", "ENG", "KSA", "SCO"] },
+  { "name": "Player 8", "teams": ["CAN", "ESP", "MAR", "SEN"] },
+  { "name": "Player 9", "teams": ["CIV", "FRA", "MEX", "SUI"] },
+  { "name": "Player 10", "teams": ["COD", "GER", "NED", "SWE"] },
+  { "name": "Player 11", "teams": ["COL", "GHA", "NOR", "TUN"] }
+]
