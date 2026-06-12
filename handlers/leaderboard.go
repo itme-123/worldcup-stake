@@ -21,60 +21,36 @@ func GetLeaderboard(database *sql.DB) gin.HandlerFunc {
 }
 
 func ComputeLeaderboard(database *sql.DB) ([]models.LeaderboardEntry, error) {
+	// Each owned team's result counts separately: owning both sides of a match
+	// yields one win and one loss (or two draws). Ranking is wins, then draws
+	// as the tiebreaker, then fewest losses.
 	rows, err := database.Query(`
-		WITH player_match_teams AS (
-			SELECT
-				u.id,
-				m.id AS match_id,
-				m.match_date,
-				MAX(CASE WHEN m.home_team_id = ut.team_id THEN 1 ELSE 0 END) AS owns_home,
-				MAX(CASE WHEN m.away_team_id = ut.team_id THEN 1 ELSE 0 END) AS owns_away,
-				m.home_score,
-				m.away_score
-			FROM users u
-			JOIN user_teams ut ON ut.user_id = u.id
-			JOIN matches m ON (m.home_team_id = ut.team_id OR m.away_team_id = ut.team_id)
-			WHERE m.status = 'FINISHED' AND m.home_score IS NOT NULL AND m.away_score IS NOT NULL
-			GROUP BY u.id, m.id, m.match_date, m.home_score, m.away_score
-		),
-		player_match_points AS (
-			SELECT
-				id,
-				match_id,
-				match_date,
-				CASE
-					WHEN owns_home = 1 AND owns_away = 1 THEN 1.0
-					WHEN home_score = away_score THEN 0.5
-					WHEN owns_home = 1 AND home_score > away_score THEN 1.0
-					WHEN owns_away = 1 AND away_score > home_score THEN 1.0
-					ELSE 0.0
-				END AS points
-			FROM player_match_teams
-		),
-		player_progress AS (
-			SELECT
-				id,
-				match_date,
-				SUM(points) OVER (PARTITION BY id ORDER BY match_date, match_id ROWS UNBOUNDED PRECEDING) AS cumulative_points
-			FROM player_match_points
-			WHERE points > 0
-		)
 		SELECT
 			u.id,
 			u.name,
-			COALESCE(scores.total_points, 0) AS points,
-			(
-				SELECT MIN(pp.match_date)
-				FROM player_progress pp
-				WHERE pp.id = u.id AND pp.cumulative_points >= COALESCE(scores.total_points, 0)
-			) AS reached_date
+			COALESCE(SUM(CASE
+				WHEN m.home_team_id = ut.team_id AND m.home_score > m.away_score THEN 1
+				WHEN m.away_team_id = ut.team_id AND m.away_score > m.home_score THEN 1
+				ELSE 0
+			END), 0) AS wins,
+			COALESCE(SUM(CASE
+				WHEN m.id IS NOT NULL AND m.home_score = m.away_score THEN 1
+				ELSE 0
+			END), 0) AS draws,
+			COALESCE(SUM(CASE
+				WHEN m.home_team_id = ut.team_id AND m.home_score < m.away_score THEN 1
+				WHEN m.away_team_id = ut.team_id AND m.away_score < m.home_score THEN 1
+				ELSE 0
+			END), 0) AS losses
 		FROM users u
-		LEFT JOIN (
-			SELECT id, SUM(points) AS total_points
-			FROM player_match_points
-			GROUP BY id
-		) scores ON scores.id = u.id
-		ORDER BY points DESC, reached_date ASC
+		LEFT JOIN user_teams ut ON ut.user_id = u.id
+		LEFT JOIN matches m
+			ON (m.home_team_id = ut.team_id OR m.away_team_id = ut.team_id)
+			AND m.status = 'FINISHED'
+			AND m.home_score IS NOT NULL
+			AND m.away_score IS NOT NULL
+		GROUP BY u.id, u.name
+		ORDER BY wins DESC, draws DESC, losses ASC, u.name ASC
 	`)
 	if err != nil {
 		return nil, err
@@ -84,10 +60,10 @@ func ComputeLeaderboard(database *sql.DB) ([]models.LeaderboardEntry, error) {
 	var entries []models.LeaderboardEntry
 	for rows.Next() {
 		var e models.LeaderboardEntry
-		var reachedDate sql.NullString
-		if err := rows.Scan(&e.UserID, &e.Name, &e.Points, &reachedDate); err != nil {
+		if err := rows.Scan(&e.UserID, &e.Name, &e.Wins, &e.Draws, &e.Losses); err != nil {
 			return nil, err
 		}
+		e.Points = float64(e.Wins)
 		entries = append(entries, e)
 	}
 

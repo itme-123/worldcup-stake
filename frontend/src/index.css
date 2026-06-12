@@ -250,6 +250,15 @@ section { margin-bottom: 2.75rem; }
   text-decoration: line-through;
 }
 
+.points-record {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-top: 0.1rem;
+  white-space: nowrap;
+}
+
 /* ── MATCH LIST ───────────────────────────────────── */
 .match-list {
   display: flex;

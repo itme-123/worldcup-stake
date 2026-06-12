@@ -171,7 +171,10 @@ function computeBadges(entries: LeaderboardEntry[], stats: Map<string, PlayerSta
   if (entries.length >= 2) {
     const last = entries[entries.length - 1]
     const secondLast = entries[entries.length - 2]
-    if (last.points < secondLast.points)
+    const soloLast =
+      last.wins < secondLast.wins ||
+      (last.wins === secondLast.wins && last.draws < secondLast.draws)
+    if (soloLast)
       add(last.name, { icon: '🥄', label: 'Wooden Spoon', detail: 'Dead last. Someone has to be.' })
   }
 
@@ -286,8 +289,9 @@ export default function Leaderboard() {
                     </div>
                   </div>
                   <div class="points-display">
-                    <span class="points-value">{entry.points}</span>
+                    <span class="points-value">{entry.wins}</span>
                     <span class="points-label">Wins</span>
+                    <span class="points-record">{entry.draws}D · {entry.losses}L</span>
                   </div>
                 </div>
               )

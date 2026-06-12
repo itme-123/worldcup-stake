@@ -15,20 +15,34 @@ func TestComputeLeaderboardScoresDrawsAndSameOwnerMatches(t *testing.T) {
 		t.Fatalf("compute leaderboard: %v", err)
 	}
 
-	pointsByName := map[string]float64{}
+	byName := map[string]struct{ wins, draws, losses int }{}
+	order := []string{}
 	for _, entry := range entries {
-		pointsByName[entry.Name] = entry.Points
+		byName[entry.Name] = struct{ wins, draws, losses int }{entry.Wins, entry.Draws, entry.Losses}
+		order = append(order, entry.Name)
 	}
 
-	assertPoints(t, pointsByName, "Ava", 1.5)
-	assertPoints(t, pointsByName, "Ben", 0.5)
-	assertPoints(t, pointsByName, "Cam", 1.0)
+	// Ava (Alpha): draw vs Beta, win vs Gamma
+	assertRecord(t, byName, "Ava", 1, 1, 0)
+	// Ben (Beta): draw vs Alpha
+	assertRecord(t, byName, "Ben", 0, 1, 0)
+	// Cam (Gamma + Delta): derby gives a win and a loss; Gamma also lost to Alpha
+	assertRecord(t, byName, "Cam", 1, 0, 2)
+
+	// Wins rank first, draws break the tie
+	want := []string{"Ava", "Cam", "Ben"}
+	for i, name := range want {
+		if order[i] != name {
+			t.Fatalf("rank %d = %s, want %s (full order %v)", i+1, order[i], name, order)
+		}
+	}
 }
 
-func assertPoints(t *testing.T, pointsByName map[string]float64, name string, want float64) {
+func assertRecord(t *testing.T, byName map[string]struct{ wins, draws, losses int }, name string, wins, draws, losses int) {
 	t.Helper()
-	if got := pointsByName[name]; got != want {
-		t.Fatalf("%s points = %v, want %v", name, got, want)
+	got := byName[name]
+	if got.wins != wins || got.draws != draws || got.losses != losses {
+		t.Fatalf("%s record = %dW %dD %dL, want %dW %dD %dL", name, got.wins, got.draws, got.losses, wins, draws, losses)
 	}
 }
 

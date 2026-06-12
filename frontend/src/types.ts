@@ -23,6 +23,9 @@ export interface LeaderboardEntry {
   userId: number
   name: string
   points: number
+  wins: number
+  draws: number
+  losses: number
   teams: string[]
 }
 
