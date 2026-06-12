@@ -1,4 +1,4 @@
-import { createMemo, createResource, For, onCleanup, Show } from 'solid-js'
+import { createMemo, createResource, createSignal, For, onCleanup, Show } from 'solid-js'
 import type { LeaderboardEntry, Match, MatchesResponse } from '../types'
 import { getFlagClass } from '../flags'
 
@@ -116,6 +116,14 @@ interface Badge {
   detail: string
 }
 
+const BADGE_TYPES = [
+  { icon: '🥇', label: 'Golden Boots', desc: 'Their teams have scored the most goals. Needs a sole leader — no badge while tied.' },
+  { icon: '🕳️', label: 'The Sieve', desc: 'Their teams have conceded the most goals. Needs a sole leader — no badge while tied.' },
+  { icon: '🍿', label: 'The Entertainer', desc: "The most goals seen across their teams' matches, win or lose. Needs a sole leader." },
+  { icon: '🔥', label: 'On Fire', desc: 'Their teams have won 3 or more matches in a row. Anyone on a streak earns it.' },
+  { icon: '🥄', label: 'Wooden Spoon', desc: 'Outright last on the Win Counter. Someone has to be.' },
+]
+
 function computeBadges(entries: LeaderboardEntry[], stats: Map<string, PlayerStats>) {
   const badges = new Map<string, Badge[]>()
   const add = (player: string, badge: Badge) => {
@@ -184,6 +192,7 @@ function computeBadges(entries: LeaderboardEntry[], stats: Map<string, PlayerSta
 export default function Leaderboard() {
   const [entries, { refetch }] = createResource(fetchLeaderboard)
   const [matchData, { refetch: refetchMatches }] = createResource(fetchMatches)
+  const [selectedBadge, setSelectedBadge] = createSignal<string | null>(null)
 
   const refreshTimer = window.setInterval(() => {
     refetch()
@@ -239,12 +248,74 @@ export default function Leaderboard() {
         <p class="error">Failed to load leaderboard. Is the backend running?</p>
       </Show>
       <Show when={entries()}>
+        <div class="badge-strip">
+          <For each={BADGE_TYPES}>
+            {(bt) => {
+              const holders = () =>
+                [...badges().entries()]
+                  .filter(([, list]) => list.some((b) => b.label === bt.label))
+                  .map(([player, list]) => ({
+                    name: player,
+                    detail: list.find((b) => b.label === bt.label)!.detail,
+                  }))
+              const hoverText = () =>
+                `${bt.desc} ${holders().length ? 'Held by ' + holders().map((h) => h.name).join(', ') + '.' : 'Unclaimed right now.'}`
+              return (
+                <button
+                  class={`badge-strip-chip ${selectedBadge() === bt.label ? 'active' : ''}`}
+                  title={hoverText()}
+                  onClick={() =>
+                    setSelectedBadge(selectedBadge() === bt.label ? null : bt.label)
+                  }
+                >
+                  {bt.icon} {bt.label}
+                </button>
+              )
+            }}
+          </For>
+        </div>
+        <Show when={BADGE_TYPES.find((bt) => bt.label === selectedBadge())}>
+          {(bt) => {
+            const holders = () =>
+              [...badges().entries()]
+                .filter(([, list]) => list.some((b) => b.label === bt().label))
+                .map(([player, list]) => ({
+                  name: player,
+                  detail: list.find((b) => b.label === bt().label)!.detail,
+                }))
+            return (
+              <div class="badge-info-panel">
+                <div class="badge-info-title">{bt().icon} {bt().label}</div>
+                <div class="badge-info-desc">{bt().desc}</div>
+                <div class="badge-info-holder">
+                  <Show
+                    when={holders().length > 0}
+                    fallback={<span>Unclaimed right now — no one qualifies yet.</span>}
+                  >
+                    <For each={holders()}>
+                      {(h) => (
+                        <span class="badge-info-holder-name">
+                          👑 {h.name} — {h.detail}
+                        </span>
+                      )}
+                    </For>
+                  </Show>
+                </div>
+              </div>
+            )
+          }}
+        </Show>
         <div class="leaderboard-table">
           <For each={entries()}>
             {(entry) => {
               const alive = () => aliveCount(entry.name)
+              const isHighlighted = () =>
+                selectedBadge() != null &&
+                (badges().get(entry.name) ?? []).some((b) => b.label === selectedBadge())
               return (
-                <div class={`leaderboard-row rank-${entry.rank}`}>
+                <div
+                  class={`leaderboard-row rank-${entry.rank} ${isHighlighted() ? 'badge-holder' : ''}`}
+                >
                   <div class="rank-badge">
                     <span class="rank-icon">{rankIcon(entry.rank)}</span>
                     <span class="rank-num">{rankLabel(entry.rank)}</span>

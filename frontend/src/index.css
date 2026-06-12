@@ -259,6 +259,67 @@ section { margin-bottom: 2.75rem; }
   white-space: nowrap;
 }
 
+.badge-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.badge-strip-chip {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--gold);
+  background: var(--bg-card);
+  border: 1.5px solid #f0dcbd;
+  border-radius: 99px;
+  padding: 0.4rem 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.badge-strip-chip:hover,
+.badge-strip-chip.active {
+  background: #fef7ec;
+  border-color: var(--gold);
+}
+
+.badge-info-panel {
+  background: #fef7ec;
+  border: 1.5px solid #f0dcbd;
+  border-radius: var(--radius);
+  padding: 0.85rem 1.1rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.badge-info-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-bottom: 0.25rem;
+}
+
+.badge-info-desc {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-bottom: 0.4rem;
+}
+
+.badge-info-holder {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.leaderboard-row.badge-holder {
+  outline: 2px solid var(--gold);
+  outline-offset: -2px;
+}
+
 /* ── MATCH LIST ───────────────────────────────────── */
 .match-list {
   display: flex;
