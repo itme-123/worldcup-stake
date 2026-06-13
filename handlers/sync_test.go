@@ -184,10 +184,12 @@ func newTestSyncDB(t *testing.T) *sql.DB {
 			away_score       INTEGER,
 			status           TEXT,
 			match_date       TEXT,
-			stage            TEXT,
-			home_red_cards   INTEGER NOT NULL DEFAULT 0,
-			away_red_cards   INTEGER NOT NULL DEFAULT 0,
-			red_cards_synced INTEGER NOT NULL DEFAULT 0
+			stage             TEXT,
+			home_red_cards    INTEGER NOT NULL DEFAULT 0,
+			away_red_cards    INTEGER NOT NULL DEFAULT 0,
+			home_yellow_cards INTEGER NOT NULL DEFAULT 0,
+			away_yellow_cards INTEGER NOT NULL DEFAULT 0,
+			red_cards_synced  INTEGER NOT NULL DEFAULT 0
 		);
 		CREATE TABLE match_sources (
 			match_id             TEXT NOT NULL REFERENCES matches(id),

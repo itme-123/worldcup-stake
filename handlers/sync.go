@@ -306,7 +306,10 @@ func (s *Syncer) syncMatches(providerName string, matches []ProviderMatch) error
 	return nil
 }
 
-const fifaEventRedCard = 3
+const (
+	fifaEventYellowCard = 2
+	fifaEventRedCard    = 3
+)
 
 type fifaTimelineResponse struct {
 	Event []fifaTimelineEvent `json:"Event"`
@@ -318,10 +321,10 @@ type fifaTimelineEvent struct {
 }
 
 // syncRedCards fetches the FIFA event timeline for finished matches that haven't
-// had their red cards counted yet, tallies Type 3 (red card) events per team,
-// and stores the totals. Best-effort: any failure is logged and skipped so it
-// can never disrupt the main score sync. Capped per cycle to stay gentle on the
-// FIFA API; remaining matches are picked up on subsequent syncs.
+// had their cards counted yet, tallies red (Type 3) and yellow (Type 2) card
+// events per team, and stores the totals. Best-effort: any failure is logged and
+// skipped so it can never disrupt the main score sync. Capped per cycle to stay
+// gentle on the FIFA API; remaining matches are picked up on subsequent syncs.
 func (s *Syncer) syncRedCards() {
 	rows, err := s.db.Query(`
 		SELECT m.id, ms.source_match_id, ms.source_stage_id, ms.source_home_team_id, ms.source_away_team_id
@@ -354,47 +357,60 @@ func (s *Syncer) syncRedCards() {
 	client := &http.Client{Timeout: 15 * time.Second}
 	processed := 0
 	for _, j := range jobs {
-		counts, err := fetchFifaRedCards(client, j.stageID, j.matchID)
+		reds, yellows, err := fetchFifaCardCounts(client, j.stageID, j.matchID)
 		if err != nil {
-			log.Printf("RedCards: fetch failed for match %s: %v", j.id, err)
+			log.Printf("Cards: fetch failed for match %s: %v", j.id, err)
 			continue
 		}
 		if _, err := s.db.Exec(
-			"UPDATE matches SET home_red_cards = ?, away_red_cards = ?, red_cards_synced = 1 WHERE id = ?",
-			counts[j.homeTeamID], counts[j.awayTeamID], j.id,
+			`UPDATE matches SET
+				home_red_cards = ?, away_red_cards = ?,
+				home_yellow_cards = ?, away_yellow_cards = ?,
+				red_cards_synced = 1
+			WHERE id = ?`,
+			reds[j.homeTeamID], reds[j.awayTeamID],
+			yellows[j.homeTeamID], yellows[j.awayTeamID],
+			j.id,
 		); err != nil {
-			log.Printf("RedCards: update failed for match %s: %v", j.id, err)
+			log.Printf("Cards: update failed for match %s: %v", j.id, err)
 			continue
 		}
 		processed++
 	}
-	log.Printf("RedCards: counted red cards for %d/%d finished match(es)", processed, len(jobs))
+	log.Printf("Cards: counted cards for %d/%d finished match(es)", processed, len(jobs))
 }
 
-func fetchFifaRedCards(client *http.Client, stageID, matchID string) (map[string]int, error) {
+func fetchFifaCardCounts(client *http.Client, stageID, matchID string) (reds, yellows map[string]int, err error) {
 	url := fmt.Sprintf("https://api.fifa.com/api/v3/timelines/17/285023/%s/%s?language=en", stageID, matchID)
 	resp, err := client.Get(url)
 	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
+		return nil, nil, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
+		return nil, nil, fmt.Errorf("API returned status %d", resp.StatusCode)
 	}
 
 	var result fifaTimelineResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("decode response: %w", err)
+		return nil, nil, fmt.Errorf("decode response: %w", err)
 	}
 
-	counts := map[string]int{}
+	reds = map[string]int{}
+	yellows = map[string]int{}
 	for _, e := range result.Event {
-		if e.Type == fifaEventRedCard && e.IdTeam != "" {
-			counts[e.IdTeam]++
+		if e.IdTeam == "" {
+			continue
+		}
+		switch e.Type {
+		case fifaEventRedCard:
+			reds[e.IdTeam]++
+		case fifaEventYellowCard:
+			yellows[e.IdTeam]++
 		}
 	}
-	return counts, nil
+	return reds, yellows, nil
 }
 
 func fifaMatchStatus(status int) string {

@@ -9,6 +9,5 @@
   { "name": "Jordan", "teams": ["HAI", "USA", "KOR", "EGY"] },
   { "name": "Justin", "teams": ["SEN", "NOR", "AUT", "JPN"] },
   { "name": "Jerome", "teams": ["KSA", "PAN", "ESP", "ENG"] },
-  { "name": "Christian", "teams": ["CAN", "COD", "MAR", "QAT"] },
-  { "name": "Not Drawn", "teams": ["CZE", "NZL", "PAR", "UZB"] }
+  { "name": "Christian", "teams": ["CAN", "COD", "MAR", "QAT"] }
 ]

@@ -59,10 +59,12 @@ func migrate(database *sql.DB) error {
 			away_score       INTEGER,
 			status           TEXT,
 			match_date       TEXT,
-			stage            TEXT,
-			home_red_cards   INTEGER NOT NULL DEFAULT 0,
-			away_red_cards   INTEGER NOT NULL DEFAULT 0,
-			red_cards_synced INTEGER NOT NULL DEFAULT 0
+			stage             TEXT,
+			home_red_cards    INTEGER NOT NULL DEFAULT 0,
+			away_red_cards    INTEGER NOT NULL DEFAULT 0,
+			home_yellow_cards INTEGER NOT NULL DEFAULT 0,
+			away_yellow_cards INTEGER NOT NULL DEFAULT 0,
+			red_cards_synced  INTEGER NOT NULL DEFAULT 0
 		);
 		CREATE TABLE IF NOT EXISTS match_sources (
 			match_id             TEXT NOT NULL REFERENCES matches(id),
@@ -121,6 +123,8 @@ func migrate(database *sql.DB) error {
 	ensure := []struct{ table, column, def string }{
 		{"matches", "home_red_cards", "INTEGER NOT NULL DEFAULT 0"},
 		{"matches", "away_red_cards", "INTEGER NOT NULL DEFAULT 0"},
+		{"matches", "home_yellow_cards", "INTEGER NOT NULL DEFAULT 0"},
+		{"matches", "away_yellow_cards", "INTEGER NOT NULL DEFAULT 0"},
 		{"matches", "red_cards_synced", "INTEGER NOT NULL DEFAULT 0"},
 		{"match_sources", "source_stage_id", "TEXT"},
 		{"match_sources", "source_home_team_id", "TEXT"},

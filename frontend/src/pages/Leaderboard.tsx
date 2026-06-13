@@ -75,6 +75,8 @@ interface PlayerStats {
   goalsAgainst: number
   matchGoals: number
   redCards: number
+  yellowCards: number
+  cleanSheets: number
   streak: number
 }
 
@@ -83,7 +85,15 @@ function computeStats(matches: Match[], owners: Record<string, string>) {
   const results = new Map<string, boolean[]>()
   const get = (p: string) => {
     if (!stats.has(p))
-      stats.set(p, { goalsFor: 0, goalsAgainst: 0, matchGoals: 0, redCards: 0, streak: 0 })
+      stats.set(p, {
+        goalsFor: 0,
+        goalsAgainst: 0,
+        matchGoals: 0,
+        redCards: 0,
+        yellowCards: 0,
+        cleanSheets: 0,
+        streak: 0,
+      })
     return stats.get(p)!
   }
   const finished = matches
@@ -91,8 +101,8 @@ function computeStats(matches: Match[], owners: Record<string, string>) {
     .sort((a, b) => Date.parse(a.matchDate) - Date.parse(b.matchDate))
   for (const m of finished) {
     const sides = [
-      { code: m.homeTeamCode, gf: m.homeScore!, ga: m.awayScore!, reds: m.homeRedCards ?? 0 },
-      { code: m.awayTeamCode, gf: m.awayScore!, ga: m.homeScore!, reds: m.awayRedCards ?? 0 },
+      { code: m.homeTeamCode, gf: m.homeScore!, ga: m.awayScore!, reds: m.homeRedCards ?? 0, yellows: m.homeYellowCards ?? 0 },
+      { code: m.awayTeamCode, gf: m.awayScore!, ga: m.homeScore!, reds: m.awayRedCards ?? 0, yellows: m.awayYellowCards ?? 0 },
     ]
     for (const s of sides) {
       const owner = owners[s.code]
@@ -102,6 +112,8 @@ function computeStats(matches: Match[], owners: Record<string, string>) {
       st.goalsAgainst += s.ga
       st.matchGoals += s.gf + s.ga
       st.redCards += s.reds
+      st.yellowCards += s.yellows
+      if (s.ga === 0) st.cleanSheets += 1
       results.set(owner, [...(results.get(owner) ?? []), s.gf > s.ga])
     }
   }
@@ -123,9 +135,12 @@ const SOLE_LEADER_HINT = 'Needs a sole leader — nobody is outright ahead yet.'
 
 const BADGE_TYPES = [
   { icon: '🥇', label: 'Golden Boots', desc: 'Most goals scored by their teams.', unclaimedHint: SOLE_LEADER_HINT },
-  { icon: '🕳️', label: 'The Sieve', desc: 'Most goals conceded by their teams.', unclaimedHint: SOLE_LEADER_HINT },
+  { icon: '🧱', label: 'The Wall', desc: 'Most clean sheets (matches their teams conceded zero).', unclaimedHint: SOLE_LEADER_HINT },
   { icon: '🍿', label: 'The Entertainer', desc: "Most goals seen across their teams' matches, win or lose.", unclaimedHint: SOLE_LEADER_HINT },
   { icon: '🔥', label: 'On Fire', desc: 'Three or more wins in a row across their teams.', unclaimedHint: 'No one is on a 3-win streak yet.' },
+  { icon: '🛡️', label: 'Unbeaten', desc: "None of their teams has lost yet (and they've played).", unclaimedHint: 'Everyone has tasted defeat — nobody is unbeaten.' },
+  { icon: '🕳️', label: 'The Sieve', desc: 'Most goals conceded by their teams.', unclaimedHint: SOLE_LEADER_HINT },
+  { icon: '🟨', label: 'Card Magnet', desc: 'Most yellow cards collected by their teams.', unclaimedHint: SOLE_LEADER_HINT },
   { icon: '🟥', label: 'Hot Heads', desc: 'Most red cards collected by their teams.', unclaimedHint: SOLE_LEADER_HINT },
   { icon: '🥄', label: 'Wooden Spoon', desc: 'Outright last on the Win Counter.', unclaimedHint: "Nobody is outright last — it's still tied at the bottom." },
 ]
@@ -189,6 +204,32 @@ function computeBadges(entries: LeaderboardEntry[], stats: Map<string, PlayerSta
       label: 'Hot Heads',
       detail: `Their teams have collected the most red cards (${hotHeads.value})`,
     })
+
+  const cardMagnet = soleLeader((st) => st.yellowCards)
+  if (cardMagnet)
+    add(cardMagnet.player, {
+      icon: '🟨',
+      label: 'Card Magnet',
+      detail: `Their teams have collected the most yellow cards (${cardMagnet.value})`,
+    })
+
+  const wall = soleLeader((st) => st.cleanSheets)
+  if (wall)
+    add(wall.player, {
+      icon: '🧱',
+      label: 'The Wall',
+      detail: `Most clean sheets across their teams (${wall.value})`,
+    })
+
+  // Status badge — awarded to everyone who qualifies, not just a sole leader.
+  for (const e of entries) {
+    if (e.losses === 0 && e.wins + e.draws > 0)
+      add(e.name, {
+        icon: '🛡️',
+        label: 'Unbeaten',
+        detail: `None of their teams has lost yet (${e.wins}W ${e.draws}D)`,
+      })
+  }
 
   if (entries.length >= 2) {
     const last = entries[entries.length - 1]

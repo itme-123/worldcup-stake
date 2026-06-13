@@ -21,7 +21,8 @@ func GetMatches(database *sql.DB) gin.HandlerFunc {
 				ht.id, ht.name, ht.code,
 				at.id, at.name, at.code,
 				m.home_score, m.away_score,
-				m.home_red_cards, m.away_red_cards
+				m.home_red_cards, m.away_red_cards,
+				m.home_yellow_cards, m.away_yellow_cards
 			FROM matches m
 			JOIN teams ht ON ht.id = m.home_team_id
 			JOIN teams at ON at.id = m.away_team_id
@@ -43,6 +44,7 @@ func GetMatches(database *sql.DB) gin.HandlerFunc {
 				&m.AwayTeamID, &m.AwayTeam, &m.AwayTeamCode,
 				&homeScore, &awayScore,
 				&m.HomeRedCards, &m.AwayRedCards,
+				&m.HomeYellowCards, &m.AwayYellowCards,
 			); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return

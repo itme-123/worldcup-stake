@@ -10,6 +10,8 @@ export interface Match {
   awayScore: number | null
   homeRedCards: number
   awayRedCards: number
+  homeYellowCards: number
+  awayYellowCards: number
   status: string
   matchDate: string
   stage: string

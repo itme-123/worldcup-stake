@@ -15,8 +15,10 @@ type Match struct {
 	AwayTeamCode string `json:"awayTeamCode"`
 	HomeScore    *int   `json:"homeScore"`
 	AwayScore    *int   `json:"awayScore"`
-	HomeRedCards int    `json:"homeRedCards"`
-	AwayRedCards int    `json:"awayRedCards"`
+	HomeRedCards    int `json:"homeRedCards"`
+	AwayRedCards    int `json:"awayRedCards"`
+	HomeYellowCards int `json:"homeYellowCards"`
+	AwayYellowCards int `json:"awayYellowCards"`
 	Status       string `json:"status"`
 	MatchDate    string `json:"matchDate"`
 	Stage        string `json:"stage"`
