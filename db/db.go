@@ -52,19 +52,25 @@ func migrate(database *sql.DB) error {
 			PRIMARY KEY (user_id, team_id)
 		);
 		CREATE TABLE IF NOT EXISTS matches (
-			id           TEXT PRIMARY KEY,
-			home_team_id INTEGER REFERENCES teams(id),
-			away_team_id INTEGER REFERENCES teams(id),
-			home_score   INTEGER,
-			away_score   INTEGER,
-			status       TEXT,
-			match_date   TEXT,
-			stage        TEXT
+			id               TEXT PRIMARY KEY,
+			home_team_id     INTEGER REFERENCES teams(id),
+			away_team_id     INTEGER REFERENCES teams(id),
+			home_score       INTEGER,
+			away_score       INTEGER,
+			status           TEXT,
+			match_date       TEXT,
+			stage            TEXT,
+			home_red_cards   INTEGER NOT NULL DEFAULT 0,
+			away_red_cards   INTEGER NOT NULL DEFAULT 0,
+			red_cards_synced INTEGER NOT NULL DEFAULT 0
 		);
 		CREATE TABLE IF NOT EXISTS match_sources (
-			match_id        TEXT NOT NULL REFERENCES matches(id),
-			source          TEXT NOT NULL,
-			source_match_id TEXT NOT NULL,
+			match_id             TEXT NOT NULL REFERENCES matches(id),
+			source               TEXT NOT NULL,
+			source_match_id      TEXT NOT NULL,
+			source_stage_id      TEXT,
+			source_home_team_id  TEXT,
+			source_away_team_id  TEXT,
 			PRIMARY KEY (match_id, source),
 			UNIQUE(source, source_match_id)
 		);
@@ -106,5 +112,51 @@ func migrate(database *sql.DB) error {
 		WHERE status IS NOT NULL
 			AND UPPER(TRIM(status)) NOT IN ('UPCOMING', 'LIVE', 'FINISHED');
 	`)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Resilience for any pre-existing database (e.g. if disk ever persists across
+	// a deploy): add the red-card columns when an older schema is missing them.
+	ensure := []struct{ table, column, def string }{
+		{"matches", "home_red_cards", "INTEGER NOT NULL DEFAULT 0"},
+		{"matches", "away_red_cards", "INTEGER NOT NULL DEFAULT 0"},
+		{"matches", "red_cards_synced", "INTEGER NOT NULL DEFAULT 0"},
+		{"match_sources", "source_stage_id", "TEXT"},
+		{"match_sources", "source_home_team_id", "TEXT"},
+		{"match_sources", "source_away_team_id", "TEXT"},
+	}
+	for _, c := range ensure {
+		has, err := hasColumn(database, c.table, c.column)
+		if err != nil {
+			return err
+		}
+		if !has {
+			if _, err := database.Exec("ALTER TABLE " + c.table + " ADD COLUMN " + c.column + " " + c.def); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func hasColumn(database *sql.DB, table, column string) (bool, error) {
+	rows, err := database.Query("PRAGMA table_info(" + table + ")")
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var cid int
+		var name, ctype string
+		var notnull, pk int
+		var dflt sql.NullString
+		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dflt, &pk); err != nil {
+			return false, err
+		}
+		if name == column {
+			return true, nil
+		}
+	}
+	return false, rows.Err()
 }

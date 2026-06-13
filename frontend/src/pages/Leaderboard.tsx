@@ -74,6 +74,7 @@ interface PlayerStats {
   goalsFor: number
   goalsAgainst: number
   matchGoals: number
+  redCards: number
   streak: number
 }
 
@@ -81,7 +82,8 @@ function computeStats(matches: Match[], owners: Record<string, string>) {
   const stats = new Map<string, PlayerStats>()
   const results = new Map<string, boolean[]>()
   const get = (p: string) => {
-    if (!stats.has(p)) stats.set(p, { goalsFor: 0, goalsAgainst: 0, matchGoals: 0, streak: 0 })
+    if (!stats.has(p))
+      stats.set(p, { goalsFor: 0, goalsAgainst: 0, matchGoals: 0, redCards: 0, streak: 0 })
     return stats.get(p)!
   }
   const finished = matches
@@ -89,8 +91,8 @@ function computeStats(matches: Match[], owners: Record<string, string>) {
     .sort((a, b) => Date.parse(a.matchDate) - Date.parse(b.matchDate))
   for (const m of finished) {
     const sides = [
-      { code: m.homeTeamCode, gf: m.homeScore!, ga: m.awayScore! },
-      { code: m.awayTeamCode, gf: m.awayScore!, ga: m.homeScore! },
+      { code: m.homeTeamCode, gf: m.homeScore!, ga: m.awayScore!, reds: m.homeRedCards ?? 0 },
+      { code: m.awayTeamCode, gf: m.awayScore!, ga: m.homeScore!, reds: m.awayRedCards ?? 0 },
     ]
     for (const s of sides) {
       const owner = owners[s.code]
@@ -99,6 +101,7 @@ function computeStats(matches: Match[], owners: Record<string, string>) {
       st.goalsFor += s.gf
       st.goalsAgainst += s.ga
       st.matchGoals += s.gf + s.ga
+      st.redCards += s.reds
       results.set(owner, [...(results.get(owner) ?? []), s.gf > s.ga])
     }
   }
@@ -121,6 +124,7 @@ const BADGE_TYPES = [
   { icon: '🕳️', label: 'The Sieve', desc: 'Their teams have conceded the most goals. Needs a sole leader — no badge while tied.' },
   { icon: '🍿', label: 'The Entertainer', desc: "The most goals seen across their teams' matches, win or lose. Needs a sole leader." },
   { icon: '🔥', label: 'On Fire', desc: 'Their teams have won 3 or more matches in a row. Anyone on a streak earns it.' },
+  { icon: '🟥', label: 'Hot Heads', desc: 'Their teams have collected the most red cards. Needs a sole leader — no badge while tied.' },
   { icon: '🥄', label: 'Wooden Spoon', desc: 'Outright last on the Win Counter. Someone has to be.' },
 ]
 
@@ -175,6 +179,14 @@ function computeBadges(entries: LeaderboardEntry[], stats: Map<string, PlayerSta
     if (st.streak >= 3)
       add(p, { icon: '🔥', label: 'On Fire', detail: `${st.streak} wins in a row` })
   }
+
+  const hotHeads = soleLeader((st) => st.redCards)
+  if (hotHeads)
+    add(hotHeads.player, {
+      icon: '🟥',
+      label: 'Hot Heads',
+      detail: `Their teams have collected the most red cards (${hotHeads.value})`,
+    })
 
   if (entries.length >= 2) {
     const last = entries[entries.length - 1]

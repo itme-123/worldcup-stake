@@ -8,6 +8,8 @@ export interface Match {
   awayTeamId: number
   homeScore: number | null
   awayScore: number | null
+  homeRedCards: number
+  awayRedCards: number
   status: string
   matchDate: string
   stage: string

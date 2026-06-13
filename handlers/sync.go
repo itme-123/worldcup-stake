@@ -36,6 +36,11 @@ type ProviderMatch struct {
 	Status       string
 	MatchDate    string
 	Stage        string
+	// FIFA-only identifiers used to fetch the per-match event timeline for red
+	// cards. Empty for providers that don't expose them (e.g. football-data).
+	SourceStageID    string
+	SourceHomeTeamID string
+	SourceAwayTeamID string
 }
 
 type FootballDataProvider struct {
@@ -126,15 +131,18 @@ func (p *FIFAProvider) FetchMatches() ([]ProviderMatch, error) {
 	matches := make([]ProviderMatch, 0, len(result.Results))
 	for _, m := range result.Results {
 		matches = append(matches, ProviderMatch{
-			Source:       p.Name(),
-			SourceID:     m.ID,
-			HomeTeamCode: m.Home.Abbreviation,
-			AwayTeamCode: m.Away.Abbreviation,
-			HomeScore:    m.HomeTeamScore,
-			AwayScore:    m.AwayTeamScore,
-			Status:       fifaMatchStatus(m.MatchStatus),
-			MatchDate:    m.Date,
-			Stage:        fifaStage(m),
+			Source:           p.Name(),
+			SourceID:         m.ID,
+			HomeTeamCode:     m.Home.Abbreviation,
+			AwayTeamCode:     m.Away.Abbreviation,
+			HomeScore:        m.HomeTeamScore,
+			AwayScore:        m.AwayTeamScore,
+			Status:           fifaMatchStatus(m.MatchStatus),
+			MatchDate:        m.Date,
+			Stage:            fifaStage(m),
+			SourceStageID:    m.IdStage,
+			SourceHomeTeamID: m.Home.IdTeam,
+			SourceAwayTeamID: m.Away.IdTeam,
 		})
 	}
 	return matches, nil
@@ -178,6 +186,7 @@ type fifaResponse struct {
 
 type fifaMatch struct {
 	ID            string           `json:"IdMatch"`
+	IdStage       string           `json:"IdStage"`
 	Date          string           `json:"Date"`
 	MatchStatus   int              `json:"MatchStatus"`
 	Home          fifaTeam         `json:"Home"`
@@ -189,6 +198,7 @@ type fifaMatch struct {
 }
 
 type fifaTeam struct {
+	IdTeam       string `json:"IdTeam"`
 	Abbreviation string `json:"Abbreviation"`
 }
 
@@ -214,6 +224,7 @@ func (s *Syncer) Sync() {
 			log.Printf("Sync: provider %s sync failed: %v", provider.Name(), err)
 			continue
 		}
+		s.syncRedCards()
 		return
 	}
 
@@ -268,11 +279,14 @@ func (s *Syncer) syncMatches(providerName string, matches []ProviderMatch) error
 			continue
 		}
 		_, err = s.db.Exec(`
-			INSERT INTO match_sources (match_id, source, source_match_id)
-			VALUES (?, ?, ?)
+			INSERT INTO match_sources (match_id, source, source_match_id, source_stage_id, source_home_team_id, source_away_team_id)
+			VALUES (?, ?, ?, ?, ?, ?)
 			ON CONFLICT(match_id, source) DO UPDATE SET
-				source_match_id = excluded.source_match_id
-		`, matchID, source, m.SourceID)
+				source_match_id     = excluded.source_match_id,
+				source_stage_id     = excluded.source_stage_id,
+				source_home_team_id = excluded.source_home_team_id,
+				source_away_team_id = excluded.source_away_team_id
+		`, matchID, source, m.SourceID, m.SourceStageID, m.SourceHomeTeamID, m.SourceAwayTeamID)
 		if err != nil {
 			log.Printf("Sync: failed to upsert source %s match %s: %v", source, m.SourceID, err)
 			continue
@@ -290,6 +304,97 @@ func (s *Syncer) syncMatches(providerName string, matches []ProviderMatch) error
 
 	log.Printf("Sync: %d/%d matches upserted from %s", updated, len(matches), providerName)
 	return nil
+}
+
+const fifaEventRedCard = 3
+
+type fifaTimelineResponse struct {
+	Event []fifaTimelineEvent `json:"Event"`
+}
+
+type fifaTimelineEvent struct {
+	Type   int    `json:"Type"`
+	IdTeam string `json:"IdTeam"`
+}
+
+// syncRedCards fetches the FIFA event timeline for finished matches that haven't
+// had their red cards counted yet, tallies Type 3 (red card) events per team,
+// and stores the totals. Best-effort: any failure is logged and skipped so it
+// can never disrupt the main score sync. Capped per cycle to stay gentle on the
+// FIFA API; remaining matches are picked up on subsequent syncs.
+func (s *Syncer) syncRedCards() {
+	rows, err := s.db.Query(`
+		SELECT m.id, ms.source_match_id, ms.source_stage_id, ms.source_home_team_id, ms.source_away_team_id
+		FROM matches m
+		JOIN match_sources ms ON ms.match_id = m.id AND ms.source = 'fifa'
+		WHERE m.status = 'FINISHED' AND m.red_cards_synced = 0
+			AND ms.source_stage_id IS NOT NULL AND ms.source_stage_id <> ''
+			AND ms.source_home_team_id IS NOT NULL AND ms.source_away_team_id IS NOT NULL
+		LIMIT 30
+	`)
+	if err != nil {
+		log.Printf("RedCards: query failed: %v", err)
+		return
+	}
+	type job struct{ id, matchID, stageID, homeTeamID, awayTeamID string }
+	var jobs []job
+	for rows.Next() {
+		var j job
+		if err := rows.Scan(&j.id, &j.matchID, &j.stageID, &j.homeTeamID, &j.awayTeamID); err != nil {
+			log.Printf("RedCards: scan failed: %v", err)
+			continue
+		}
+		jobs = append(jobs, j)
+	}
+	rows.Close()
+	if len(jobs) == 0 {
+		return
+	}
+
+	client := &http.Client{Timeout: 15 * time.Second}
+	processed := 0
+	for _, j := range jobs {
+		counts, err := fetchFifaRedCards(client, j.stageID, j.matchID)
+		if err != nil {
+			log.Printf("RedCards: fetch failed for match %s: %v", j.id, err)
+			continue
+		}
+		if _, err := s.db.Exec(
+			"UPDATE matches SET home_red_cards = ?, away_red_cards = ?, red_cards_synced = 1 WHERE id = ?",
+			counts[j.homeTeamID], counts[j.awayTeamID], j.id,
+		); err != nil {
+			log.Printf("RedCards: update failed for match %s: %v", j.id, err)
+			continue
+		}
+		processed++
+	}
+	log.Printf("RedCards: counted red cards for %d/%d finished match(es)", processed, len(jobs))
+}
+
+func fetchFifaRedCards(client *http.Client, stageID, matchID string) (map[string]int, error) {
+	url := fmt.Sprintf("https://api.fifa.com/api/v3/timelines/17/285023/%s/%s?language=en", stageID, matchID)
+	resp, err := client.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
+	}
+
+	var result fifaTimelineResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+
+	counts := map[string]int{}
+	for _, e := range result.Event {
+		if e.Type == fifaEventRedCard && e.IdTeam != "" {
+			counts[e.IdTeam]++
+		}
+	}
+	return counts, nil
 }
 
 func fifaMatchStatus(status int) string {
