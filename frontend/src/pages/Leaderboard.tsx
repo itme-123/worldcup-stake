@@ -119,13 +119,15 @@ interface Badge {
   detail: string
 }
 
+const SOLE_LEADER_HINT = 'Needs a sole leader — nobody is outright ahead yet.'
+
 const BADGE_TYPES = [
-  { icon: '🥇', label: 'Golden Boots', desc: 'Their teams have scored the most goals. Needs a sole leader — no badge while tied.' },
-  { icon: '🕳️', label: 'The Sieve', desc: 'Their teams have conceded the most goals. Needs a sole leader — no badge while tied.' },
-  { icon: '🍿', label: 'The Entertainer', desc: "The most goals seen across their teams' matches, win or lose. Needs a sole leader." },
-  { icon: '🔥', label: 'On Fire', desc: 'Their teams have won 3 or more matches in a row. Anyone on a streak earns it.' },
-  { icon: '🟥', label: 'Hot Heads', desc: 'Their teams have collected the most red cards. Needs a sole leader — no badge while tied.' },
-  { icon: '🥄', label: 'Wooden Spoon', desc: 'Outright last on the Win Counter. Someone has to be.' },
+  { icon: '🥇', label: 'Golden Boots', desc: 'Most goals scored by their teams.', unclaimedHint: SOLE_LEADER_HINT },
+  { icon: '🕳️', label: 'The Sieve', desc: 'Most goals conceded by their teams.', unclaimedHint: SOLE_LEADER_HINT },
+  { icon: '🍿', label: 'The Entertainer', desc: "Most goals seen across their teams' matches, win or lose.", unclaimedHint: SOLE_LEADER_HINT },
+  { icon: '🔥', label: 'On Fire', desc: 'Three or more wins in a row across their teams.', unclaimedHint: 'No one is on a 3-win streak yet.' },
+  { icon: '🟥', label: 'Hot Heads', desc: 'Most red cards collected by their teams.', unclaimedHint: SOLE_LEADER_HINT },
+  { icon: '🥄', label: 'Wooden Spoon', desc: 'Outright last on the Win Counter.', unclaimedHint: "Nobody is outright last — it's still tied at the bottom." },
 ]
 
 function computeBadges(entries: LeaderboardEntry[], stats: Map<string, PlayerStats>) {
@@ -271,7 +273,7 @@ export default function Leaderboard() {
                     detail: list.find((b) => b.label === bt.label)!.detail,
                   }))
               const hoverText = () =>
-                `${bt.desc} ${holders().length ? 'Held by ' + holders().map((h) => h.name).join(', ') + '.' : 'Unclaimed right now.'}`
+                `${bt.desc} ${holders().length ? 'Held by ' + holders().map((h) => h.name).join(', ') + '.' : 'Unclaimed right now — ' + bt.unclaimedHint}`
               return (
                 <button
                   class={`badge-strip-chip ${selectedBadge() === bt.label ? 'active' : ''}`}
@@ -302,7 +304,7 @@ export default function Leaderboard() {
                 <div class="badge-info-holder">
                   <Show
                     when={holders().length > 0}
-                    fallback={<span>Unclaimed right now — no one qualifies yet.</span>}
+                    fallback={<span>Unclaimed right now — {bt().unclaimedHint}</span>}
                   >
                     <For each={holders()}>
                       {(h) => (
