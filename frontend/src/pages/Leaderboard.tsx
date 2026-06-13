@@ -287,6 +287,30 @@ export default function Leaderboard() {
     return map
   })
 
+  // One-time scroll "nudge" on mobile so first-time visitors discover that the
+  // badge strip scrolls horizontally. Fires only when the strip overflows and
+  // the user hasn't asked for reduced motion. Runs once via the guard.
+  let badgeHintDone = false
+  const initBadgeHint = (el: HTMLDivElement) => {
+    if (badgeHintDone || !el) return
+    badgeHintDone = true
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    window.setTimeout(() => {
+      const max = el.scrollWidth - el.clientWidth
+      if (max <= 8) return // fits on screen (desktop) — no hint needed
+      const dist = Math.min(72, max)
+      const seq = [dist, 0, dist, 0]
+      let i = 0
+      const step = () => {
+        if (i >= seq.length) return
+        el.scrollTo({ left: seq[i], behavior: 'smooth' })
+        i++
+        window.setTimeout(step, 800)
+      }
+      step()
+    }, 700)
+  }
+
   const aliveCount = (player: string) => {
     const owned = ownedCodes().get(player)
     if (!owned) return null
@@ -305,9 +329,11 @@ export default function Leaderboard() {
       <Show when={entries()}>
         <div class="badge-intro">
           <span class="badge-intro-title">🏅 Honours &amp; Badges</span>
-          <span class="badge-intro-sub">Tap a badge to see who holds it</span>
+          <span class="badge-intro-sub">
+            Tap a badge to see who holds it<span class="badge-intro-swipe"> · swipe for more →</span>
+          </span>
         </div>
-        <div class="badge-strip">
+        <div class="badge-strip" ref={(el) => initBadgeHint(el)}>
           <For each={BADGE_TYPES}>
             {(bt) => {
               const holders = () =>

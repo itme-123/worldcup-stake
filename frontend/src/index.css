@@ -279,6 +279,16 @@ section { margin-bottom: 2.75rem; }
   color: var(--text-muted);
 }
 
+/* "swipe for more" only applies on phones where the strip scrolls */
+.badge-intro-swipe {
+  display: none;
+}
+@media (max-width: 600px) {
+  .badge-intro-swipe {
+    display: inline;
+  }
+}
+
 .badge-strip {
   display: flex;
   flex-wrap: wrap;
