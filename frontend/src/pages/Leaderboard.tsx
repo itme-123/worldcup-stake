@@ -303,6 +303,10 @@ export default function Leaderboard() {
         <p class="error">Failed to load leaderboard. Is the backend running?</p>
       </Show>
       <Show when={entries()}>
+        <div class="badge-intro">
+          <span class="badge-intro-title">🏅 Honours &amp; Badges</span>
+          <span class="badge-intro-sub">Tap a badge to see who holds it</span>
+        </div>
         <div class="badge-strip">
           <For each={BADGE_TYPES}>
             {(bt) => {

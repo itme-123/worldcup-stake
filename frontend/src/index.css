@@ -259,6 +259,26 @@ section { margin-bottom: 2.75rem; }
   white-space: nowrap;
 }
 
+.badge-intro {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.badge-intro-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: 0.01em;
+}
+
+.badge-intro-sub {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
 .badge-strip {
   display: flex;
   flex-wrap: wrap;
