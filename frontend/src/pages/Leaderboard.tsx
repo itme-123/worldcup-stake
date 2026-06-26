@@ -30,43 +30,41 @@ const rankIcon = (rank: number) => {
 
 const isGroupStage = (m: Match) => m.stage.startsWith('Group')
 
-const earliest = (ms: Match[]) => Math.min(...ms.map((m) => Date.parse(m.matchDate)))
-
-// A team is out of the running when it loses a decided knockout match, or when
-// the next knockout round is fully known and the team isn't in it. Teams in the
-// third-place play-off are already eliminated from winning the cup.
+// A team is out of the running only when something has actually happened to put
+// it out — never by bracket inference. (FIFA pre-publishes some knockout
+// fixtures during the group stage, so "isn't in the next round yet" does NOT
+// mean a team is eliminated.) Two real signals:
+//   1. It lost a decided knockout match.
+//   2. The group stage is fully complete and it didn't make the bracket.
 function computeEliminated(matches: Match[], allCodes: string[]): Set<string> {
   const eliminated = new Set<string>()
-  const knockouts = matches.filter((m) => !isGroupStage(m))
-  if (knockouts.length === 0) return eliminated
 
-  const byStage = new Map<string, Match[]>()
-  for (const m of knockouts) {
-    byStage.set(m.stage, [...(byStage.get(m.stage) ?? []), m])
-  }
-  let rounds = [...byStage.values()].sort((a, b) => earliest(a) - earliest(b))
-  // Drop the third-place play-off: a single-match round that isn't the final
-  rounds = rounds.filter((ms, i) => !(ms.length === 1 && i < rounds.length - 1))
-
-  const participants = (ms: Match[]) =>
-    new Set(ms.flatMap((m) => [m.homeTeamCode, m.awayTeamCode]).filter(Boolean))
-  const fullyKnown = (ms: Match[]) => ms.every((m) => m.homeTeamCode && m.awayTeamCode)
-
-  let prev = new Set(allCodes)
-  for (const ms of rounds) {
-    if (!fullyKnown(ms)) break
-    const current = participants(ms)
-    for (const code of prev) if (!current.has(code)) eliminated.add(code)
-    prev = current
+  // 1) Lost a decided knockout match.
+  for (const m of matches) {
+    if (isGroupStage(m)) continue
+    if (m.status !== 'FINISHED' || m.homeScore == null || m.awayScore == null) continue
+    if (m.homeScore > m.awayScore) eliminated.add(m.awayTeamCode)
+    else if (m.awayScore > m.homeScore) eliminated.add(m.homeTeamCode)
+    // A level score means it went to penalties; the score alone can't tell us
+    // who advanced, so we leave both in until the next round resolves it.
   }
 
-  for (const ms of rounds) {
-    for (const m of ms) {
-      if (m.status !== 'FINISHED' || m.homeScore == null || m.awayScore == null) continue
-      if (m.homeScore > m.awayScore) eliminated.add(m.awayTeamCode)
-      else if (m.awayScore > m.homeScore) eliminated.add(m.homeTeamCode)
+  // 2) Group stage finished and the team isn't in the knockout bracket.
+  const groupMatches = matches.filter(isGroupStage)
+  const groupStageComplete =
+    groupMatches.length > 0 && groupMatches.every((m) => m.status === 'FINISHED')
+  if (groupStageComplete) {
+    const qualified = new Set<string>()
+    for (const m of matches) {
+      if (isGroupStage(m)) continue
+      if (m.homeTeamCode) qualified.add(m.homeTeamCode)
+      if (m.awayTeamCode) qualified.add(m.awayTeamCode)
+    }
+    if (qualified.size > 0) {
+      for (const code of allCodes) if (!qualified.has(code)) eliminated.add(code)
     }
   }
+
   return eliminated
 }
 
